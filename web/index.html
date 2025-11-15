@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Delayed Notifier</title>
+    <script src="/static/script.js"></script>
+</head>
+<body>
+    <h1>Create Notification</h1>
+    <form id="notifyForm">
+        <label>Message: <input type="text" name="message" required></label><br>
+        <label>Recipient: <input type="text" name="recipient" required></label><br>
+        <label>Channel: 
+            <select name="channel" required>
+                <option value="email">Email</option>
+                <option value="telegram">Telegram</option>
+            </select>
+        </label><br>
+        <label>Send At: <input type="datetime-local" name="send_at" required></label><br>
+        <button type="submit">Create</button>
+    </form>
+
+    <h2>Current Notifications</h2>
+    <table id="notifsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Message</th>
+                <th>Recipient</th>
+                <th>Channel</th>
+                <th>Send At</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadNotifications);
+        document.getElementById('notifyForm').addEventListener('submit', createNotification);
+    </script>
+</body>
+</html>

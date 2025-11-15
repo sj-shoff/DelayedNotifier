@@ -1,0 +1,34 @@
+db:
+  host: localhost
+  port: 5402
+  user: user
+  pass: pass
+  dbname: db
+  max_open_conns: 25
+  max_idle_conns: 25
+  slaves: []
+redis:
+  host: localhost
+  port: 6666
+  pass: ""
+  db: 0
+rabbitmq:
+  host: localhost
+  port: 5677
+  user: guest
+  pass: guest
+  vhost: /
+server:
+  addr: :8080
+retries:
+  attempts: 3
+  delay_ms: 1000
+  backoff: 2
+cache_ttl_hours: 24
+email:
+  smtp_host: smtp.example.com
+  smtp_port: 587
+  user: user@example.com
+  pass: password
+telegram:
+  bot_token: YOUR_TELEGRAM_BOT_TOKEN
