@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"delayed-notifier/internal/domain"
@@ -25,12 +26,15 @@ func NewRedisCache(client *wbfredis.Client, retries retry.Strategy) *RedisCache 
 
 func (r *RedisCache) Get(ctx context.Context, id string) (*domain.Notification, error) {
 	val, err := r.client.GetWithRetry(ctx, r.retries, "notif:"+id)
-	if err != nil || val == "" {
-		return nil, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to get from redis: %w", err)
+	}
+	if val == "" {
+		return nil, nil
 	}
 	var notif domain.Notification
 	if err := json.Unmarshal([]byte(val), &notif); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal notification: %w", err)
 	}
 	return &notif, nil
 }
@@ -38,11 +42,17 @@ func (r *RedisCache) Get(ctx context.Context, id string) (*domain.Notification, 
 func (r *RedisCache) Set(ctx context.Context, id string, notif *domain.Notification, ttl time.Duration) error {
 	data, err := json.Marshal(notif)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal notification: %w", err)
 	}
-	return r.client.SetWithRetry(ctx, r.retries, "notif:"+id, string(data))
+	if err := r.client.SetWithRetry(ctx, r.retries, "notif:"+id, string(data)); err != nil {
+		return fmt.Errorf("failed to set in redis: %w", err)
+	}
+	return nil
 }
 
 func (r *RedisCache) Del(ctx context.Context, id string) error {
-	return r.client.DelWithRetry(ctx, r.retries, "notif:"+id)
+	if err := r.client.DelWithRetry(ctx, r.retries, "notif:"+id); err != nil {
+		return fmt.Errorf("failed to delete from redis: %w", err)
+	}
+	return nil
 }

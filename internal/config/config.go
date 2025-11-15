@@ -45,7 +45,7 @@ type Config struct {
 	} `yaml:"server"`
 	Retries struct {
 		Attempts int     `yaml:"attempts" env:"RETRIES_ATTEMPTS" validate:"gte=1"`
-		DelayMs  int     `yaml:"delay_ms" env:"RETRIES_DELAY_MS" validate:"gte=0"` // Refactored: int для ms
+		DelayMs  int     `yaml:"delay_ms" env:"RETRIES_DELAY_MS" validate:"gte=0"`
 		Backoff  float64 `yaml:"backoff" env:"RETRIES_BACKOFF" validate:"gte=1"`
 	} `yaml:"retries"`
 	CacheTTLHours int      `yaml:"cache_ttl_hours" env:"CACHE_TTL_HOURS" validate:"gte=1"`
@@ -67,7 +67,7 @@ type Telegram struct {
 func MustLoad() (*Config, error) {
 	var c Config
 	cfg := config.New()
-	if err := cfg.LoadConfigFiles("config.yaml"); err != nil {
+	if err := cfg.LoadConfigFiles("configs/config.yaml"); err != nil {
 		zlog.Logger.Warn().Err(err).Msg("Failed to load config.yaml, using env")
 	}
 	if err := cfg.LoadEnvFiles(".env"); err != nil {
