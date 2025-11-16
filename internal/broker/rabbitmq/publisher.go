@@ -1,30 +1,42 @@
+// internal/broker/rabbitmq/publisher.go
 package rabbitmq
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/wb-go/wbf/retry"
+	wbfrabbit "github.com/wb-go/wbf/rabbitmq"
+	"github.com/wb-go/wbf/zlog"
 )
 
-func (b *Broker) Publish(ctx context.Context, exchange, key string, publishing amqp.Publishing) error {
-	return retry.DoContext(ctx, b.retries, func() error {
-		ch, err := b.client.GetChannel()
-		if err != nil {
-			return err
-		}
-		defer ch.Close()
-		return ch.PublishWithContext(ctx, exchange, key, false, false, publishing)
-	})
+type Publisher struct {
+	publisher *wbfrabbit.Publisher
 }
 
-func (b *Broker) PublishDelayed(ctx context.Context, notificationID string, delay time.Duration) error {
-	publishing := amqp.Publishing{
-		Body: []byte(notificationID),
-		Headers: amqp.Table{
-			"x-delay": int32(delay.Milliseconds()),
-		},
+func NewPublisher(client *wbfrabbit.RabbitClient) *Publisher {
+	return &Publisher{
+		publisher: wbfrabbit.NewPublisher(client, "delayed_notifications", "application/json"),
 	}
-	return b.Publish(ctx, "delayed_notifications", "notify", publishing)
+}
+
+func (p *Publisher) PublishDelayed(ctx context.Context, id string, delay time.Duration) error {
+	payload := struct {
+		ID string `json:"id"`
+	}{
+		ID: id,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		zlog.Logger.Error().Err(err).Msg("Failed to marshal payload")
+		return err
+	}
+
+	delayMs := int(delay.Milliseconds())
+	headers := amqp.Table{"x-delay": delayMs}
+
+	zlog.Logger.Info().Str("id", id).Int("delay_ms", delayMs).Msg("Publishing delayed message")
+
+	return p.publisher.Publish(ctx, body, "notify", wbfrabbit.WithHeaders(headers))
 }

@@ -6,26 +6,27 @@ import (
 	"time"
 
 	"delayed-notifier/internal/domain"
+	"delayed-notifier/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/wb-go/wbf/retry"
 	"github.com/wb-go/wbf/zlog"
 )
 
-type notificationUsecase struct {
-	repo     NotificationRepository
+type NotificationUsecase struct {
+	repo     repository.NotificationRepository
 	broker   MessageBroker
 	retries  retry.Strategy
 	notifier Notifier
 }
 
 func NewNotificationUsecase(
-	repo NotificationRepository,
+	repo repository.NotificationRepository,
 	broker MessageBroker,
 	retries retry.Strategy,
 	notifier Notifier,
-) *notificationUsecase {
-	return &notificationUsecase{
+) *NotificationUsecase {
+	return &NotificationUsecase{
 		repo:     repo,
 		broker:   broker,
 		retries:  retries,
@@ -33,7 +34,7 @@ func NewNotificationUsecase(
 	}
 }
 
-func (u *notificationUsecase) CreateNotification(ctx context.Context, dto *domain.CreateNotification) (*domain.Notification, error) {
+func (u *NotificationUsecase) CreateNotification(ctx context.Context, dto *domain.CreateNotification) (*domain.Notification, error) {
 	if dto.SendAt.Before(time.Now()) {
 		return nil, domain.ErrSendAtInPast
 	}
@@ -58,7 +59,7 @@ func (u *notificationUsecase) CreateNotification(ctx context.Context, dto *domai
 	return notif, nil
 }
 
-func (u *notificationUsecase) GetNotificationStatus(ctx context.Context, id string) (domain.NotificationStatus, error) {
+func (u *NotificationUsecase) GetNotificationStatus(ctx context.Context, id string) (domain.NotificationStatus, error) {
 	notif, err := u.repo.Get(ctx, id)
 	if err != nil {
 		return "", err
@@ -69,7 +70,7 @@ func (u *notificationUsecase) GetNotificationStatus(ctx context.Context, id stri
 	return notif.Status, nil
 }
 
-func (u *notificationUsecase) CancelNotification(ctx context.Context, id string) error {
+func (u *NotificationUsecase) CancelNotification(ctx context.Context, id string) error {
 	notif, err := u.repo.Get(ctx, id)
 	if err != nil {
 		return err
@@ -83,11 +84,11 @@ func (u *notificationUsecase) CancelNotification(ctx context.Context, id string)
 	return u.repo.UpdateStatus(ctx, id, domain.StatusCancelled)
 }
 
-func (u *notificationUsecase) ListNotifications(ctx context.Context) ([]*domain.Notification, error) {
+func (u *NotificationUsecase) ListNotifications(ctx context.Context) ([]*domain.Notification, error) {
 	return u.repo.List(ctx)
 }
 
-func (u *notificationUsecase) ProcessNotification(ctx context.Context, id string) error {
+func (u *NotificationUsecase) ProcessNotification(ctx context.Context, id string) error {
 	notif, err := u.repo.Get(ctx, id)
 	if err != nil {
 		return err

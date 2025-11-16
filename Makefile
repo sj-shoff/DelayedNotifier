@@ -9,10 +9,13 @@ build:
 	go build -o bin/delayed-notifier cmd/app/main.go
 
 docker-up:
-	docker-compose up -d
+	docker-compose up --build
 
 docker-down:
 	docker-compose down
+
+docker-clean:
+	docker-compose down -v --remove-orphans
 
 migrate-up:
 	goose -dir migrations postgres "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable" up

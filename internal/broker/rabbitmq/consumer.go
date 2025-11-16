@@ -1,25 +1,22 @@
+// internal/broker/rabbitmq/consumer.go
 package rabbitmq
 
 import (
 	"context"
 
-	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/wb-go/wbf/retry"
+	wbfrabbit "github.com/wb-go/wbf/rabbitmq"
 )
 
-func (b *Broker) Consume(ctx context.Context, queue string) (<-chan amqp.Delivery, error) {
-	var deliveries <-chan amqp.Delivery
-	err := retry.DoContext(ctx, b.retries, func() error {
-		ch, err := b.client.GetChannel()
-		if err != nil {
-			return err
-		}
-		defer ch.Close()
-		deliveries, err = ch.Consume(queue, "", false, false, false, false, nil)
-		return err
-	})
-	if err != nil {
-		return nil, err
+type Consumer struct {
+	consumer *wbfrabbit.Consumer
+}
+
+func NewConsumer(client *wbfrabbit.RabbitClient, cfg wbfrabbit.ConsumerConfig, handler wbfrabbit.MessageHandler) *Consumer {
+	return &Consumer{
+		consumer: wbfrabbit.NewConsumer(client, cfg, handler),
 	}
-	return deliveries, nil
+}
+
+func (c *Consumer) Consume(ctx context.Context) error {
+	return c.consumer.Start(ctx)
 }

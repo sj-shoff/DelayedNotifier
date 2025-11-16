@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"delayed-notifier/internal/config"
 	"delayed-notifier/internal/domain"
 
 	wbfredis "github.com/wb-go/wbf/redis"
@@ -17,7 +18,8 @@ type RedisCache struct {
 	retries retry.Strategy
 }
 
-func NewRedisCache(client *wbfredis.Client, retries retry.Strategy) *RedisCache {
+func NewRedisCache(cfg *config.Config, retries retry.Strategy) *RedisCache {
+	client := wbfredis.New(cfg.RedisAddr(), cfg.Redis.Pass, cfg.Redis.DB)
 	return &RedisCache{
 		client:  client,
 		retries: retries,
@@ -53,6 +55,13 @@ func (r *RedisCache) Set(ctx context.Context, id string, notif *domain.Notificat
 func (r *RedisCache) Del(ctx context.Context, id string) error {
 	if err := r.client.DelWithRetry(ctx, r.retries, "notif:"+id); err != nil {
 		return fmt.Errorf("failed to delete from redis: %w", err)
+	}
+	return nil
+}
+
+func (r *RedisCache) Close() error {
+	if err := r.client.Close(); err != nil {
+		return fmt.Errorf("failed to close redis client: %w", err)
 	}
 	return nil
 }

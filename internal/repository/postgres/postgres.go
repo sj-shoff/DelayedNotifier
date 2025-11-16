@@ -7,23 +7,22 @@ import (
 	"time"
 
 	"delayed-notifier/internal/domain"
-	"delayed-notifier/internal/repository/redis"
+	"delayed-notifier/internal/repository"
 
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/retry"
-	"github.com/wb-go/wbf/zlog"
 )
 
 type NotificationRepository struct {
 	db      *dbpg.DB
-	cache   *redis.RedisCache
+	cache   repository.Cache
 	retries retry.Strategy
 	ttl     time.Duration
 }
 
 func NewNotificationRepository(
 	db *dbpg.DB,
-	cache *redis.RedisCache,
+	cache repository.Cache,
 	retries retry.Strategy,
 	ttl time.Duration,
 ) *NotificationRepository {
@@ -33,26 +32,8 @@ func NewNotificationRepository(
 		retries: retries,
 		ttl:     ttl,
 	}
-	r.initSchema()
-	return r
-}
 
-func (r *NotificationRepository) initSchema() {
-	_, err := r.db.ExecWithRetry(context.Background(), r.retries,
-		`CREATE TABLE IF NOT EXISTS notifications (
-			id VARCHAR(36) PRIMARY KEY,
-			user_id VARCHAR(100) NOT NULL,
-			channel VARCHAR(20) NOT NULL,
-			message TEXT NOT NULL,
-			send_at TIMESTAMP WITH TIME ZONE NOT NULL,
-			status VARCHAR(20) NOT NULL DEFAULT 'pending',
-			retries INTEGER NOT NULL DEFAULT 0,
-			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-	)`)
-	if err != nil {
-		zlog.Logger.Fatal().Err(err).Msg("Failed to create table")
-	}
+	return r
 }
 
 func (r *NotificationRepository) Create(ctx context.Context, notif *domain.Notification) error {
@@ -159,10 +140,10 @@ FROM notifications ORDER BY created_at DESC LIMIT 100`)
 func (r *NotificationRepository) GetPendingNotifications(ctx context.Context) ([]*domain.Notification, error) {
 	rows, err := r.db.QueryWithRetry(ctx, r.retries,
 		`SELECT id, user_id, channel, message, send_at, status, retries, created_at, updated_at
-FROM notifications
-WHERE status = $1 AND send_at <= $2
-ORDER BY send_at ASC
-LIMIT 100`,
+			FROM notifications
+			WHERE status = $1 AND send_at <= $2
+			ORDER BY send_at ASC
+			LIMIT 100`,
 		domain.StatusPending, time.Now(),
 	)
 	if err != nil {

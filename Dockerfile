@@ -7,15 +7,17 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o delayed-notifier cmd/app/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o delayed-notifier ./cmd/app
 
 FROM alpine:latest
 
-WORKDIR /app
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
 
 COPY --from=builder /app/delayed-notifier .
-COPY configs/config.yaml configs/
-COPY .env .
+
+COPY --from=builder /app/.env.docker ./.env
 
 EXPOSE 8080
 
