@@ -7,6 +7,8 @@ services:
       - "8080:8080"
     env_file:
       - .env.docker
+    volumes:
+      - ./static:/app/static
     depends_on:
       rabbitmq:
         condition: service_healthy

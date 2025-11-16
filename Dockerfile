@@ -16,7 +16,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 COPY --from=builder /app/delayed-notifier .
-
+COPY --from=builder /app/static ./static 
 COPY --from=builder /app/.env.docker ./.env
 
 EXPOSE 8080
