@@ -17,8 +17,8 @@ WORKDIR /root/
 
 COPY --from=builder /app/delayed-notifier .
 COPY --from=builder /app/static ./static 
-COPY --from=builder /app/.env.docker ./.env
+COPY --from=builder /app/.env ./.env
 
-EXPOSE 8080
+EXPOSE 8031
 
 CMD ["./delayed-notifier"]

@@ -1,16 +1,18 @@
-package repository
+package delayed_usecase
 
 import (
 	"context"
-	"delayed-notifier/internal/domain"
 	"time"
+
+	"delayed-notifier/internal/domain"
 )
 
-type Cache interface {
-	Set(ctx context.Context, id string, notif *domain.Notification, ttl time.Duration) error
-	Del(ctx context.Context, id string) error
-	Get(ctx context.Context, id string) (*domain.Notification, error)
-	Close() error
+type MessageBroker interface {
+	PublishDelayed(ctx context.Context, id string, delay time.Duration) error
+}
+
+type Notifier interface {
+	Send(ctx context.Context, notification *domain.Notification) error
 }
 
 type NotificationRepository interface {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"delayed-notifier/internal/domain"
-	"delayed-notifier/internal/repository"
+	"delayed-notifier/internal/repository/delayed_repository/cache"
 
 	"github.com/wb-go/wbf/dbpg"
 	"github.com/wb-go/wbf/retry"
@@ -15,14 +15,14 @@ import (
 
 type NotificationRepository struct {
 	db      *dbpg.DB
-	cache   repository.Cache
+	cache   cache.Cache
 	retries retry.Strategy
 	ttl     time.Duration
 }
 
 func NewNotificationRepository(
 	db *dbpg.DB,
-	cache repository.Cache,
+	cache cache.Cache,
 	retries retry.Strategy,
 	ttl time.Duration,
 ) *NotificationRepository {

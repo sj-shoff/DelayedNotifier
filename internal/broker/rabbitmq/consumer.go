@@ -1,4 +1,3 @@
-// internal/broker/rabbitmq/consumer.go
 package rabbitmq
 
 import (

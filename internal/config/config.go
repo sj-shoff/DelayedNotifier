@@ -38,15 +38,13 @@ type Config struct {
 		Heartbeat      time.Duration `env:"RABBITMQ_HEARTBEAT"`
 	}
 	Server struct {
-		Addr         string        `env:"SERVER_PORT" validate:"required"`
-		ReadTimeout  time.Duration `env:"SERVER_READ_TIMEOUT" validate:"required"`
-		WriteTimeout time.Duration `env:"SERVER_WRITE_TIMEOUT" validate:"required"`
-		IdleTimeout  time.Duration `env:"SERVER_IDLE_TIMEOUT" validate:"required"`
+		Addr            string        `env:"SERVER_PORT" validate:"required"`
+		ShutdownTimeout time.Duration `env:"SHUTDOWN_TIMEOUT" env-default:"10s"`
 	}
 	Retries struct {
-		Attempts int     `env:"RETRIES_ATTEMPTS" validate:"required,gte=1"`
-		DelayMs  int     `env:"RETRIES_DELAY_MS" validate:"required,gte=0"`
-		Backoff  float64 `env:"RETRIES_BACKOFF" validate:"required,gte=1"`
+		Attempts int     `env:"RETRIES_ATTEMPTS" validate:"required"`
+		DelayMs  int     `env:"RETRIES_DELAY_MS" validate:"required"`
+		Backoff  float64 `env:"RETRIES_BACKOFF" validate:"required"`
 	}
 	CacheTTLHours int `env:"CACHE_TTL_HOURS" validate:"required,gte=1"`
 	Email         Email
@@ -67,10 +65,8 @@ type Telegram struct {
 func MustLoad() (*Config, error) {
 	var cfg Config
 
-	// Сначала пробуем загрузить из .env файла
 	err := cleanenv.ReadConfig(".env", &cfg)
 	if err != nil {
-		// Если .env файла нет, загружаем из переменных окружения
 		zlog.Logger.Warn().Err(err).Msg("Failed to load .env file, using environment variables")
 		err = cleanenv.ReadEnv(&cfg)
 		if err != nil {
@@ -78,7 +74,6 @@ func MustLoad() (*Config, error) {
 		}
 	}
 
-	// Дополнительная валидация с помощью validator
 	validate := validator.New()
 	if err := validate.Struct(cfg); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)

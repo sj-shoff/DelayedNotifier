@@ -18,10 +18,10 @@ import (
 	"delayed-notifier/internal/config"
 	"delayed-notifier/internal/domain"
 	"delayed-notifier/internal/handler"
-	"delayed-notifier/internal/repository"
-	"delayed-notifier/internal/repository/postgres"
-	"delayed-notifier/internal/repository/redis"
-	"delayed-notifier/internal/usecase"
+	"delayed-notifier/internal/repository/delayed_repository/cache"
+	"delayed-notifier/internal/repository/delayed_repository/cache/redis"
+	"delayed-notifier/internal/repository/delayed_repository/repo/postgres"
+	delayed_uc "delayed-notifier/internal/usecase/delayed_usecase"
 	"delayed-notifier/internal/usecase/notifier"
 
 	"github.com/rabbitmq/amqp091-go"
@@ -29,27 +29,20 @@ import (
 	"github.com/wb-go/wbf/zlog"
 )
 
-const (
-	ShutdownTimeout = 5 * time.Second
-)
-
 type App struct {
-	cfg      *config.Config
-	db       *dbpg.DB
-	cache    repository.Cache
-	broker   broker.Broker
-	repo     repository.NotificationRepository
-	notifier usecase.Notifier
-	uc       handler.NotificationService
-	server   *http.Server
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
+	cfg    *config.Config
+	db     *dbpg.DB
+	cache  cache.Cache
+	broker broker.Broker
+	uc     handler.NotificationService
+	server *http.Server
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
 	retries := cfg.DefaultRetryStrategy()
 
-	// Инициализация базы данных
 	dbOpts := &dbpg.Options{
 		MaxOpenConns:    cfg.DB.MaxOpenConns,
 		MaxIdleConns:    cfg.DB.MaxIdleConns,
@@ -60,11 +53,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Инициализация кэша и репозиториев
 	cache := redis.NewRedisCache(cfg, retries)
 	repo := postgres.NewNotificationRepository(db, cache, retries, time.Duration(cfg.CacheTTLHours)*time.Hour)
 
-	// Инициализация RabbitMQ брокера
 	broker, err := rabbitmq.NewRabbitMQ(cfg, retries)
 	if err != nil {
 		db.Master.Close()
@@ -72,11 +63,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to create RabbitMQ broker: %w", err)
 	}
 
-	// Инициализация сервисов
 	notifier := notifier.NewMultiNotifier(cfg)
-	uc := usecase.NewNotificationUsecase(repo, broker, retries, notifier)
+	uc := delayed_uc.NewNotificationUsecase(repo, broker, retries, notifier)
 
-	// Инициализация HTTP handler
 	h := handler.NewHandler(uc)
 	mux := handler.SetupRouter(h)
 	muxWithMw := handler.LoggingMiddleware(mux)
@@ -87,17 +76,14 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 
 	app := &App{
-		cfg:      cfg,
-		db:       db,
-		cache:    cache,
-		broker:   broker,
-		repo:     repo,
-		notifier: notifier,
-		uc:       uc,
-		server:   server,
+		cfg:    cfg,
+		db:     db,
+		cache:  cache,
+		broker: broker,
+		uc:     uc,
+		server: server,
 	}
 
-	// Запускаем consumer в Run, так как handler готов
 	return app, nil
 }
 
@@ -107,7 +93,6 @@ func (a *App) Run() error {
 
 	zlog.Logger.Info().Msg("Starting application...")
 
-	// Создаем handler здесь
 	handler := func(ctx context.Context, msg amqp091.Delivery) error {
 		var payload struct {
 			ID string `json:"id"`
@@ -129,7 +114,6 @@ func (a *App) Run() error {
 		return nil
 	}
 
-	// Запускаем consumer
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
@@ -138,7 +122,6 @@ func (a *App) Run() error {
 		}
 	}()
 
-	// Запускаем HTTP сервер
 	a.wg.Add(1)
 	go func() {
 		defer a.wg.Done()
@@ -149,12 +132,10 @@ func (a *App) Run() error {
 		}
 	}()
 
-	// Ожидаем сигналы завершения
 	a.waitForShutdown()
 	return nil
 }
 
-// остальной код Shutdown и waitForShutdown как раньше
 func (a *App) waitForShutdown() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -172,7 +153,7 @@ func (a *App) Shutdown() {
 		a.cancel()
 	}
 
-	ctxShutdown, cancelShutdown := context.WithTimeout(context.Background(), ShutdownTimeout)
+	ctxShutdown, cancelShutdown := context.WithTimeout(context.Background(), a.cfg.Server.ShutdownTimeout)
 	defer cancelShutdown()
 
 	if err := a.server.Shutdown(ctxShutdown); err != nil {
@@ -202,7 +183,7 @@ func (a *App) Shutdown() {
 	select {
 	case <-done:
 		zlog.Logger.Info().Msg("All components stopped gracefully")
-	case <-time.After(ShutdownTimeout):
+	case <-time.After(a.cfg.Server.ShutdownTimeout):
 		zlog.Logger.Warn().Msg("Shutdown timeout exceeded, forcing exit")
 	}
 

@@ -1,4 +1,4 @@
-package usecase
+package delayed_usecase
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"delayed-notifier/internal/domain"
-	"delayed-notifier/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/wb-go/wbf/retry"
@@ -14,14 +13,14 @@ import (
 )
 
 type NotificationUsecase struct {
-	repo     repository.NotificationRepository
+	repo     NotificationRepository
 	broker   MessageBroker
 	retries  retry.Strategy
 	notifier Notifier
 }
 
 func NewNotificationUsecase(
-	repo repository.NotificationRepository,
+	repo NotificationRepository,
 	broker MessageBroker,
 	retries retry.Strategy,
 	notifier Notifier,

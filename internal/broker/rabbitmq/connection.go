@@ -1,4 +1,3 @@
-// internal/broker/rabbitmq/rabbitmq.go
 package rabbitmq
 
 import (
@@ -25,8 +24,6 @@ func NewRabbitMQ(cfg *config.Config, retries retry.Strategy) (*RabbitMQ, error) 
 		URL:            cfg.RabbitMQDSN(),
 		ConnectTimeout: cfg.RabbitMQ.ConnectTimeout,
 		Heartbeat:      cfg.RabbitMQ.Heartbeat,
-		PublishRetry:   retries,
-		ConsumeRetry:   retries,
 	}
 	client, err := wbfrabbit.NewClient(rabbitCfg)
 	if err != nil {
